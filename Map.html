@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Semaglutide CNS Action Pathway — Atlas Anchored Dashboard</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --panel: #ffffff;
+      --panel-border: #e2e4e8;
+      --text: #2f2f2f;
+      --muted: #6c6c6c;
+
+      --primary-fill: #FAECE7;
+      --primary-stroke: #993C1D;
+      --direct-fill: #E1F5EE;
+      --direct-stroke: #0F6E56;
+      --secondary-fill: #EEEDFE;
+      --secondary-stroke: #534AB7;
+      --context-fill: #F2F2F2;
+      --context-stroke: #8A8A8A;
+
+      --entry-strong: #D85A30;
+      --entry-overlap: #D85A30;
+      --putative: #1D9E75;
+      --downstream: #7F77DD;
+
+      --leader: #B8B8B8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: row;
+      padding: 20px;
+      gap: 20px;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 320px;
+      min-width: 320px;
+      height: 100%;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+
+    #diagram-container {
+      position: relative;
+      flex: 1;
+      height: 100%;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+      background: #ffffff;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      user-select: none;
+    }
+
+    .ui-panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      padding: 16px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #222;
+      letter-spacing: 0.02em;
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    button, .toggle-chip {
+      border: 1px solid #d5d5d5;
+      background: #fff;
+      color: #333;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    button:hover, .toggle-chip:hover {
+      border-color: #bdbdbd;
+      background: #f7f7f7;
+    }
+
+    button.active {
+      background: #1f1f1f;
+      border-color: #1f1f1f;
+      color: #fff;
+    }
+
+    .toggle-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+    }
+
+    .toggle-chip input {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .small-btn {
+      font-size: 11px;
+      padding: 6px 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: #4e4e4e;
+    }
+
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex: 0 0 auto;
+    }
+
+    .legend-line {
+      width: 28px;
+      height: 0;
+      border-top-width: 2px;
+      border-top-style: solid;
+      flex: 0 0 auto;
+    }
+
+    #status-text {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #333;
+    }
+
+    .brain-image {
+      pointer-events: none;
+    }
+
+    .anchor-dot {
+      stroke: #ffffff;
+      stroke-width: 1.2;
+      cursor: grab;
+      pointer-events: all;
+      transition: r 0.15s ease;
+    }
+
+    .anchor-dot:active {
+      cursor: grabbing;
+    }
+
+    .anchor-dot:hover {
+      r: 6.5;
+    }
+
+    .leader-line {
+      stroke: var(--leader);
+      stroke-width: 1;
+      opacity: 0.9;
+      pointer-events: none;
+    }
+
+    .node-group {
+      cursor: default;
+    }
+
+    .label-group {
+      cursor: grab;
+    }
+
+    .label-group:active {
+      cursor: grabbing;
+    }
+
+    .node-rect {
+      stroke-width: 1.5;
+      fill-opacity: 0.92;
+      rx: 8;
+      ry: 8;
+      transition: 0.15s ease;
+    }
+
+    .node-title {
+      font-size: 12px;
+      font-weight: 700;
+      fill: #333;
+      pointer-events: none;
+      text-anchor: middle;
+    }
+
+    .node-desc {
+      font-size: 10px;
+      font-weight: 600;
+      pointer-events: none;
+      text-anchor: middle;
+    }
+
+    .link-path {
+      fill: none;
+      pointer-events: stroke;
+      transition: 0.15s ease;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .dimmed {
+      opacity: 0.13 !important;
+    }
+
+    .highlighted-link {
+      filter: drop-shadow(0 0 2px rgba(0,0,0,0.18));
+    }
+
+    .tooltip {
+      position: absolute;
+      z-index: 30;
+      pointer-events: none;
+      background: rgba(20,20,20,0.92);
+      color: #fff;
+      font-size: 11px;
+      line-height: 1.45;
+      padding: 8px 10px;
+      border-radius: 8px;
+      max-width: 240px;
+      transform: translate(10px, 10px);
+      opacity: 0;
+      transition: opacity 0.12s ease;
+      white-space: normal;
+    }
+
+    .tooltip strong {
+      display: block;
+      margin-bottom: 2px;
+      font-size: 12px;
+    }
+
+    .footnote {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 좌측 UI 사이드바 -->
+  <div class="sidebar">
+    
+    <div id="status" class="ui-panel">
+      <div class="panel-title">Semaglutide CNS map</div>
+      <div id="status-text">
+        AP-centered hindbrain entry + ARH direct action + PB-centered secondary relay
+      </div>
+      <div class="footnote">
+        mode에 따라 acute distribution, steady-state distribution, circuit, integrated view를 전환
+      </div>
+    </div>
+
+    <div id="controls" class="ui-panel">
+      <div class="panel-title">표시 모드</div>
+      <div class="controls-row" id="mode-buttons"></div>
+
+      <div class="panel-title" style="margin-top: 12px;">옵션</div>
+      <div class="controls-row">
+        <label class="toggle-chip">
+          <input type="checkbox" id="toggle-leaders" checked />
+          <span>leader lines</span>
+        </label>
+        <label class="toggle-chip">
+          <input type="checkbox" id="toggle-anchors" checked />
+          <span>anchor dots</span>
+        </label>
+      </div>
+
+      <div class="panel-title" style="margin-top: 12px;">유틸리티</div>
+      <div class="controls-row">
+        <button class="small-btn" id="reset-layout-btn">label reset</button>
+        <button class="small-btn" id="export-layout-btn">export JSON</button>
+      </div>
+      <div class="footnote">
+        임시 좌표 조정이 가능
+      </div>
+    </div>
+
+    <div id="legend" class="ui-panel">
+      <div class="panel-title">영역 / 경로 구분</div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:#FAECE7;border:1px solid #993C1D;"></div>
+        <span>1차 진입점 (CVO / BBB 없음)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:#E1F5EE;border:1px solid #0F6E56;"></div>
+        <span>직접 접근 / 직접 작용 영역</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:#EEEDFE;border:1px solid #534AB7;"></div>
+        <span>2차 간접 활성 / relay</span>
+      </div>
+
+      <div class="legend-item" style="margin-top:16px;">
+        <div class="legend-line" style="border-top-color:#D85A30;border-top-style:dashed;"></div>
+        <span>entry-strong</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="border-top-color:#D85A30;border-top-style:dashed;opacity:0.75;"></div>
+        <span>entry-overlap</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="border-top-color:#1D9E75;border-top-style:dashed;"></div>
+        <span>putative / indirect modulation</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="border-top-color:#7F77DD;border-top-style:solid;"></div>
+        <span>secondary output relay</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 우측 다이어그램 메인 뷰어 -->
+  <div id="diagram-container">
+    <div id="tooltip" class="tooltip"></div>
+  </div>
+
+  <script>
+    // ============================================================
+    // CONFIG
+    // ============================================================
+    const width = 1100;
+    const height = 780;
+    const atlasImage = "Mouse Brain.png"; 
+
+    const nodeWidth = 136;
+    const nodeHeight = 46;
+
+    const classes = {
+      "primary-entry": { fill: "#FAECE7", stroke: "#993C1D", text: "#993C1D" },
+      "direct-access": { fill: "#E1F5EE", stroke: "#0F6E56", text: "#0F6E56" },
+      "secondary-relay": { fill: "#EEEDFE", stroke: "#534AB7", text: "#534AB7" }
+    };
+
+    const linkClasses = {
+      "entry-strong": { stroke: "#D85A30", dash: "6 4", width: 2.6, marker: "arrow-entry-strong", opacity: 1 },
+      "entry-overlap": { stroke: "#D85A30", dash: "3 4", width: 1.8, marker: "arrow-entry-overlap", opacity: 0.75 },
+      "putative-modulation": { stroke: "#1D9E75", dash: "4 4", width: 1.9, marker: "arrow-putative", opacity: 0.95 },
+      "secondary-output": { stroke: "#7F77DD", dash: null, width: 2.0, marker: "arrow-downstream", opacity: 1 }
+    };
+
+    const modes = {
+      acute: {
+        label: "acute",
+        showNodes: ["AP","ME","OVLT","SFO","ARH","NTS","DMX","LSc","SF","MEPO"],
+        showLinks: [],
+        status: "Acute distribution: CVOs + select ventricular-adjacent regions"
+      },
+      steady: {
+        label: "steady",
+        showNodes: ["AP","ME","OVLT","SFO","ARH","NTS","DMX","LSc","SF","MEPO","PVH","DMH","MM","SO","TU"],
+        showLinks: [],
+        status: "Steady-state distribution: acute nodes + additional hypothalamic access"
+      },
+      circuit: {
+        label: "circuit",
+        showNodes: ["AP","ARH","NTS","DMX","dlPB","CeA","BST","MTN_PVT","PSTN"],
+        showLinks: ["AP_dlPB","NTS_dlPB","ARH_dlPB","dlPB_CeA","dlPB_BST","dlPB_MTNPVT","dlPB_PSTN"],
+        status: "Core mechanism: AP-centered hindbrain entry + ARH modulation + dl-PB relay"
+      },
+      integrated: {
+        label: "integrated",
+        showNodes: "all",
+        showLinks: "all",
+        status: "Integrated map: distribution + secondary relay + distributed neural pathways"
+      }
+    };
+
+    const nodes = [
+      {
+        id: "AP", label: "Area Postrema", desc: "primary entry · GLP-1R direct",
+        class: "primary-entry", anchor: { x: 964.7, y: 434.4 }, labelBox: { x: 1004.2, y: 375.2 },
+        evidence: ["acute distribution", "c-Fos+", "primary entry"]
+      },
+      {
+        id: "ME", label: "Median Eminence", desc: "direct access",
+        class: "primary-entry", anchor: { x: 593.1, y: 564.6 }, labelBox: { x: 667.6, y: 676.8 },
+        evidence: ["acute distribution", "CVO"]
+      },
+      {
+        id: "OVLT", label: "OVLT", desc: "direct access",
+        class: "primary-entry", anchor: { x: 443.2, y: 546.6 }, labelBox: { x: 332.8, y: 401.2 },
+        evidence: ["acute distribution", "CVO"]
+      },
+      {
+        id: "SFO", label: "SFO", desc: "direct access · c-Fos+",
+        class: "primary-entry", anchor: { x: 476.4, y: 334.8 }, labelBox: { x: 547.3, y: 237.9 },
+        evidence: ["acute distribution", "c-Fos+", "CVO"]
+      },
+      {
+        id: "ARH", label: "Arcuate Nucleus", desc: "POMC/CART↑ · NPY/AgRP↓",
+        class: "direct-access", anchor: { x: 614.6, y: 557.4 }, labelBox: { x: 813.9, y: 692.0 },
+        evidence: ["direct access", "POMC/CART activation", "NPY/AgRP inhibition"]
+      },
+      {
+        id: "NTS", label: "NTS", desc: "distribution / c-Fos overlap",
+        class: "direct-access", anchor: { x: 987.1, y: 447.9 }, labelBox: { x: 1019.4, y: 501.7 },
+        evidence: ["distribution overlap", "c-Fos+", "weaker direct-cell-body basis"]
+      },
+      {
+        id: "DMX", label: "DMX", desc: "distribution / c-Fos overlap",
+        class: "direct-access", anchor: { x: 981.7, y: 460.5 }, labelBox: { x: 971.9, y: 569.1 },
+        evidence: ["distribution overlap", "c-Fos+"]
+      },
+      {
+        id: "LSc", label: "Lateral Septal", desc: "semaglutide-enriched access",
+        class: "direct-access", anchor: { x: 434.2, y: 316.8 }, labelBox: { x: 300.0, y: 215.0 },
+        evidence: ["acute distribution", "semaglutide > liraglutide access"]
+      },
+      {
+        id: "SF", label: "Septofimbrial N.", desc: "acute access",
+        class: "direct-access", anchor: { x: 450.4, y: 361.7 }, labelBox: { x: 156.9, y: 282.7 },
+        evidence: ["acute distribution"]
+      },
+      {
+        id: "MEPO", label: "Median Preoptic N.", desc: "acute access",
+        class: "direct-access", anchor: { x: 445.0, y: 491.0 }, labelBox: { x: 288.8, y: 575.4 },
+        evidence: ["acute distribution"]
+      },
+      {
+        id: "PVH", label: "PVH", desc: "steady-state access",
+        class: "direct-access", anchor: { x: 532.0, y: 472.1 }, labelBox: { x: 439.6, y: 663.3 },
+        evidence: ["steady-state distribution"]
+      },
+      {
+        id: "DMH", label: "DMH", desc: "steady-state access",
+        class: "direct-access", anchor: { x: 595.8, y: 500.9 }, labelBox: { x: 748.4, y: 457.8 },
+        evidence: ["steady-state distribution"]
+      },
+      {
+        id: "MM", label: "MM", desc: "steady-state access",
+        class: "direct-access", anchor: { x: 669.4, y: 512.5 }, labelBox: { x: 718.7, y: 596.9 },
+        evidence: ["steady-state distribution"]
+      },
+      {
+        id: "SO", label: "SO", desc: "steady-state access",
+        class: "direct-access", anchor: { x: 520.4, y: 554.7 }, labelBox: { x: 245.7, y: 632.8 },
+        evidence: ["steady-state distribution"]
+      },
+      {
+        id: "TU", label: "TU", desc: "steady-state access",
+        class: "direct-access", anchor: { x: 585.9, y: 571.8 }, labelBox: { x: 564.4, y: 728.8 },
+        evidence: ["steady-state distribution"]
+      },
+      {
+        id: "dlPB", label: "dl-PB (CGRP+)", desc: "meal termination relay",
+        class: "secondary-relay", anchor: { x: 804.0, y: 377.9 }, labelBox: { x: 793.2, y: 324.9 },
+        evidence: ["c-Fos+", "secondary relay", "CGRP overlap"]
+      },
+      {
+        id: "CeA", label: "Central Amygdala", desc: "secondary activation",
+        class: "secondary-relay", anchor: { x: 495.2, y: 488.3 }, labelBox: { x: 449.5, y: 597.8 },
+        evidence: ["secondary activation", "downstream relay"]
+      },
+      {
+        id: "BST", label: "BST", desc: "secondary activation",
+        class: "secondary-relay", anchor: { x: 474.6, y: 466.7 }, labelBox: { x: 257.4, y: 488.3 },
+        evidence: ["secondary activation", "downstream relay"]
+      },
+      {
+        id: "MTN_PVT", label: "MTN / PVT", desc: "secondary thalamic activation",
+        class: "secondary-relay", anchor: { x: 506.9, y: 347.4 }, labelBox: { x: 625.4, y: 312.4 },
+        evidence: ["secondary activation", "thalamic relay"]
+      },
+      {
+        id: "PSTN", label: "PSTN", desc: "secondary activation",
+        class: "secondary-relay", anchor: { x: 669.4, y: 488.3 }, labelBox: { x: 791.4, y: 530.5 },
+        evidence: ["secondary activation", "posterior hypothalamic relay"]
+      }
+    ];
+
+    const links = [
+      { id: "AP_dlPB", source: "AP", target: "dlPB", class: "entry-strong", tooltip: "AP-centered primary entry" },
+      { id: "NTS_dlPB", source: "NTS", target: "dlPB", class: "entry-overlap", tooltip: "NTS overlap / relay contribution" },
+      { id: "ARH_dlPB", source: "ARH", target: "dlPB", class: "putative-modulation", tooltip: "Indirect hypothalamic modulation" },
+      { id: "dlPB_CeA", source: "dlPB", target: "CeA", class: "secondary-output", tooltip: "PB → CeA downstream relay" },
+      { id: "dlPB_BST", source: "dlPB", target: "BST", class: "secondary-output", tooltip: "PB → BST downstream relay" },
+      { id: "dlPB_MTNPVT", source: "dlPB", target: "MTN_PVT", class: "secondary-output", tooltip: "PB → thalamic relay" },
+      { id: "dlPB_PSTN", source: "dlPB", target: "PSTN", class: "secondary-output", tooltip: "PB → PSTN secondary relay" }
+    ];
+
+    // ============================================================
+    // HELPERS
+    // ============================================================
+    function deepClone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    const originalNodes = deepClone(nodes);
+    let currentMode = "integrated";
+
+    function getNodeById(id) {
+      return nodes.find(n => n.id === id);
+    }
+
+    function getNodeVisible(node) {
+      const mode = modes[currentMode];
+      return mode.showNodes === "all" || mode.showNodes.includes(node.id);
+    }
+
+    function getLinkVisible(link) {
+      const mode = modes[currentMode];
+      const source = getNodeById(link.source);
+      const target = getNodeById(link.target);
+
+      const inMode = mode.showLinks === "all" || mode.showLinks.includes(link.id);
+      if (!inMode) return false;
+      if (!getNodeVisible(source) || !getNodeVisible(target)) return false;
+      return true;
+    }
+
+    function centerOfLabelBox(node) {
+      return { x: node.labelBox.x, y: node.labelBox.y };
+    }
+
+    function rectIntersection(cx, cy, tx, ty, w, h, padding = 4) {
+      const dx = tx - cx;
+      const dy = ty - cy;
+      if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+      const hw = w / 2 + padding;
+      const hh = h / 2 + padding;
+
+      const scaleX = dx !== 0 ? hw / Math.abs(dx) : Infinity;
+      const scaleY = dy !== 0 ? hh / Math.abs(dy) : Infinity;
+      const scale = Math.min(scaleX, scaleY);
+
+      return {
+        x: cx + dx * scale,
+        y: cy + dy * scale
+      };
+    }
+
+    function getLabelEdgePoint(node) {
+      const c = centerOfLabelBox(node);
+      return rectIntersection(c.x, c.y, node.anchor.x, node.anchor.y, nodeWidth, nodeHeight, 0);
+    }
+
+    function getAnchorToAnchorPath(sourceNode, targetNode, linkClassName) {
+      const sx = sourceNode.anchor.x;
+      const sy = sourceNode.anchor.y;
+      const tx = targetNode.anchor.x;
+      const ty = targetNode.anchor.y;
+
+      const mx = (sx + tx) / 2;
+      const my = (sy + ty) / 2;
+
+      let curve = -70;
+      if (linkClassName === "secondary-output") curve = -40;
+      if (linkClassName === "putative-modulation") curve = 55;
+      if (linkClassName === "entry-overlap") curve = -25;
+
+      const dx = tx - sx;
+      const dy = ty - sy;
+      const len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+
+      const nx = -dy / len;
+      const ny = dx / len;
+
+      const cx = mx + nx * curve;
+      const cy = my + ny * curve;
+
+      return `M ${sx} ${sy} Q ${cx} ${cy} ${tx} ${ty}`;
+    }
+
+    function resetLayout() {
+      originalNodes.forEach(orig => {
+        const n = getNodeById(orig.id);
+        n.labelBox.x = orig.labelBox.x;
+        n.labelBox.y = orig.labelBox.y;
+        n.anchor.x = orig.anchor.x;
+        n.anchor.y = orig.anchor.y;
+      });
+      render();
+    }
+
+    function exportLayout() {
+      const payload = nodes.reduce((acc, n) => {
+        acc[n.id] = {
+          anchor: n.anchor,
+          labelBox: n.labelBox
+        };
+        return acc;
+      }, {});
+      const text = JSON.stringify(payload, null, 2);
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert("레이아웃 JSON이 클립보드에 복사되었습니다.");
+      }).catch(() => {
+        console.log(text);
+        alert("클립보드 복사 실패. 콘솔을 확인하세요.");
+      });
+    }
+
+    // ============================================================
+    // SVG SETUP
+    // ============================================================
+    const container = d3.select("#diagram-container");
+    const tooltip = d3.select("#tooltip");
+
+    const svg = container
+      .append("svg")
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("preserveAspectRatio", "xMidYMid meet");
+
+    const defs = svg.append("defs");
+
+    function createMarker(id, color) {
+      defs.append("marker")
+        .attr("id", id)
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 8)
+        .attr("refY", 0)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", color);
+    }
+
+    createMarker("arrow-entry-strong", "#D85A30");
+    createMarker("arrow-entry-overlap", "#D85A30");
+    createMarker("arrow-putative", "#1D9E75");
+    createMarker("arrow-downstream", "#7F77DD");
+
+    const bgLayer = svg.append("g").attr("class", "bg-layer");
+    const linkLayer = svg.append("g").attr("class", "link-layer");
+    const leaderLayer = svg.append("g").attr("class", "leader-layer");
+    const anchorLayer = svg.append("g").attr("class", "anchor-layer");
+    const nodeLayer = svg.append("g").attr("class", "node-layer");
+
+    bgLayer.append("image")
+      .attr("class", "brain-image")
+      .attr("href", atlasImage)
+      .attr("x", 24)
+      .attr("y", 24)
+      .attr("width", width - 48)
+      .attr("height", height - 48)
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .attr("opacity", 0.34);
+
+    // ============================================================
+    // LINKS
+    // ============================================================
+    const linkSelection = linkLayer.selectAll(".link-path")
+      .data(links)
+      .join("path")
+      .attr("class", "link-path")
+      .attr("stroke", d => linkClasses[d.class].stroke)
+      .attr("stroke-width", d => linkClasses[d.class].width)
+      .attr("stroke-dasharray", d => linkClasses[d.class].dash || null)
+      .attr("opacity", d => linkClasses[d.class].opacity ?? 1)
+      .attr("marker-end", d => `url(#${linkClasses[d.class].marker})`)
+      .on("mouseenter", function(event, d) {
+        dimEverything();
+        d3.select(this).classed("dimmed", false).classed("highlighted-link", true);
+
+        const s = getNodeById(d.source);
+        const t = getNodeById(d.target);
+        nodeLayer.selectAll(".node-group")
+          .filter(n => n.id === s.id || n.id === t.id)
+          .classed("dimmed", false);
+
+        showTooltip(event, `<strong>${d.id}</strong>${d.tooltip}`);
+      })
+      .on("mousemove", moveTooltip)
+      .on("mouseleave", clearDimAndTooltip);
+
+    // ============================================================
+    // ANCHOR DOTS
+    // ============================================================
+    const anchorSelection = anchorLayer.selectAll(".anchor-dot")
+      .data(nodes)
+      .join("circle")
+      .attr("class", "anchor-dot")
+      .attr("r", 4.5)
+      .attr("cx", d => d.anchor.x)
+      .attr("cy", d => d.anchor.y)
+      .attr("fill", d => classes[d.class].stroke)
+      .call(
+        d3.drag()
+          .on("start", function(event, d) {
+            d3.select(this).raise().attr("r", 6.5);
+          })
+          .on("drag", function(event, d) {
+            d.anchor.x = event.x;
+            d.anchor.y = event.y;
+            updateNodePositions();
+          })
+          .on("end", function(event, d) {
+            d3.select(this).attr("r", 4.5);
+          })
+      );
+
+    // ============================================================
+    // LEADER LINES
+    // ============================================================
+    const leaderSelection = leaderLayer.selectAll(".leader-line")
+      .data(nodes)
+      .join("line")
+      .attr("class", "leader-line");
+
+    // ============================================================
+    // NODE GROUPS
+    // ============================================================
+    const nodeGroups = nodeLayer.selectAll(".node-group")
+      .data(nodes)
+      .join("g")
+      .attr("class", "node-group");
+
+    nodeGroups.append("g")
+      .attr("class", "label-group")
+      .call(
+        d3.drag()
+          .on("drag", function(event, d) {
+            d.labelBox.x = Math.max(nodeWidth / 2 + 5, Math.min(width - nodeWidth / 2 - 5, event.x));
+            d.labelBox.y = Math.max(nodeHeight / 2 + 5, Math.min(height - nodeHeight / 2 - 5, event.y));
+            updateNodePositions();
+          })
+      );
+
+    nodeGroups.select(".label-group")
+      .append("rect")
+      .attr("class", "node-rect")
+      .attr("width", nodeWidth)
+      .attr("height", nodeHeight)
+      .attr("x", -nodeWidth / 2)
+      .attr("y", -nodeHeight / 2)
+      .attr("fill", d => classes[d.class].fill)
+      .attr("stroke", d => classes[d.class].stroke);
+
+    nodeGroups.select(".label-group")
+      .append("text")
+      .attr("class", "node-title")
+      .attr("y", -4)
+      .text(d => d.label);
+
+    nodeGroups.select(".label-group")
+      .append("text")
+      .attr("class", "node-desc")
+      .attr("y", 12)
+      .attr("fill", d => classes[d.class].text)
+      .text(d => d.desc);
+
+    nodeGroups
+      .on("mouseenter", function(event, d) {
+        dimEverything();
+
+        const connectedIds = new Set([d.id]);
+
+        links.forEach(l => {
+          if (!getLinkVisible(l)) return;
+          if (l.source === d.id) connectedIds.add(l.target);
+          if (l.target === d.id) connectedIds.add(l.source);
+        });
+
+        nodeLayer.selectAll(".node-group")
+          .filter(n => connectedIds.has(n.id))
+          .classed("dimmed", false);
+
+        linkLayer.selectAll(".link-path")
+          .filter(l => l.source === d.id || l.target === d.id)
+          .classed("dimmed", false)
+          .classed("highlighted-link", true);
+
+        showTooltip(event, nodeTooltipHtml(d));
+      })
+      .on("mousemove", moveTooltip)
+      .on("mouseleave", clearDimAndTooltip);
+
+    // ============================================================
+    // TOOLTIP
+    // ============================================================
+    function nodeTooltipHtml(d) {
+      const ev = d.evidence && d.evidence.length ? d.evidence.map(x => `• ${x}`).join("<br>") : "• n/a";
+      return `<strong>${d.label}</strong>${d.desc}<br><span style="opacity:0.85">${ev}</span>`;
+    }
+
+    function showTooltip(event, html) {
+      tooltip.html(html).style("opacity", 1);
+      moveTooltip(event);
+    }
+
+    function moveTooltip(event) {
+      const rect = container.node().getBoundingClientRect();
+      tooltip
+        .style("left", `${event.clientX - rect.left + 10}px`)
+        .style("top", `${event.clientY - rect.top + 10}px`);
+    }
+
+    function hideTooltip() {
+      tooltip.style("opacity", 0);
+    }
+
+    // ============================================================
+    // DIMMING / HIGHLIGHT
+    // ============================================================
+    function dimEverything() {
+      nodeLayer.selectAll(".node-group").classed("dimmed", true);
+      linkLayer.selectAll(".link-path").classed("dimmed", true).classed("highlighted-link", false);
+    }
+
+    function clearDimAndTooltip() {
+      nodeLayer.selectAll(".node-group").classed("dimmed", false);
+      linkLayer.selectAll(".link-path").classed("dimmed", false).classed("highlighted-link", false);
+      hideTooltip();
+    }
+
+    // ============================================================
+    // UPDATE
+    // ============================================================
+    function updateNodePositions() {
+      nodeGroups.select(".label-group")
+        .attr("transform", d => `translate(${d.labelBox.x}, ${d.labelBox.y})`);
+
+      anchorSelection
+        .attr("cx", d => d.anchor.x)
+        .attr("cy", d => d.anchor.y);
+
+      leaderSelection
+        .attr("x1", d => d.anchor.x)
+        .attr("y1", d => d.anchor.y)
+        .attr("x2", d => getLabelEdgePoint(d).x)
+        .attr("y2", d => getLabelEdgePoint(d).y);
+
+      linkSelection
+        .attr("d", d => {
+          const s = getNodeById(d.source);
+          const t = getNodeById(d.target);
+          return getAnchorToAnchorPath(s, t, d.class);
+        });
+    }
+
+    function updateVisibility() {
+      nodeGroups.classed("hidden", d => !getNodeVisible(d));
+      leaderSelection.classed("hidden", d => !getNodeVisible(d));
+      anchorSelection.classed("hidden", d => !getNodeVisible(d));
+      linkSelection.classed("hidden", d => !getLinkVisible(d));
+
+      const showLeaders = document.getElementById("toggle-leaders").checked;
+      const showAnchors = document.getElementById("toggle-anchors").checked;
+
+      leaderSelection.style("display", d => {
+        if (!getNodeVisible(d)) return "none";
+        return showLeaders ? null : "none";
+      });
+
+      anchorSelection.style("display", d => {
+        if (!getNodeVisible(d)) return "none";
+        return showAnchors ? null : "none";
+      });
+
+      document.getElementById("status-text").textContent = modes[currentMode].status;
+    }
+
+    function render() {
+      updateNodePositions();
+      updateVisibility();
+      updateModeButtons();
+    }
+
+    // ============================================================
+    // MODE BUTTONS
+    // ============================================================
+    const modeButtonsWrap = document.getElementById("mode-buttons");
+
+    Object.entries(modes).forEach(([key, value]) => {
+      const btn = document.createElement("button");
+      btn.textContent = value.label;
+      btn.dataset.mode = key;
+      btn.addEventListener("click", () => {
+        currentMode = key;
+        render();
+      });
+      modeButtonsWrap.appendChild(btn);
+    });
+
+    function updateModeButtons() {
+      [...modeButtonsWrap.querySelectorAll("button")].forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.mode === currentMode);
+      });
+    }
+
+    // ============================================================
+    // UI EVENTS
+    // ============================================================
+    document.getElementById("toggle-leaders").addEventListener("change", render);
+    document.getElementById("toggle-anchors").addEventListener("change", render);
+
+    document.getElementById("reset-layout-btn").addEventListener("click", resetLayout);
+    document.getElementById("export-layout-btn").addEventListener("click", exportLayout);
+
+    // ============================================================
+    // INITIAL RENDER
+    // ============================================================
+    render();
+  </script>
+</body>
+</html>
