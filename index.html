@@ -23,9 +23,9 @@
       --context-stroke: #8A8A8A;
 
       --entry-strong: #D85A30;
-      --entry-overlap: #D85A30;
-      --putative: #1D9E75;
-      --downstream: #7F77DD;
+      --entry-overlap: #B85C38;      /* strong과 차이 강화 */
+      --putative: #2B8CBE;           /* green 계열과 분리 */
+      --downstream: #6B63D9;    /* purple 선 가시성 강화 */
 
       --leader: #B8B8B8;
     }
@@ -284,7 +284,6 @@
 </head>
 <body>
 
-  <!-- 좌측 UI 사이드바 -->
   <div class="sidebar">
     
     <div id="status" class="ui-panel">
@@ -326,39 +325,38 @@
     <div id="legend" class="ui-panel">
       <div class="panel-title">영역 / 경로 구분</div>
       <div class="legend-item">
-        <div class="legend-swatch" style="background:#FAECE7;border:1px solid #993C1D;"></div>
+        <div class="legend-swatch" style="background:var(--primary-fill);border:1px solid var(--primary-stroke);"></div>
         <span>1차 진입점 (CVO / BBB 없음)</span>
       </div>
       <div class="legend-item">
-        <div class="legend-swatch" style="background:#E1F5EE;border:1px solid #0F6E56;"></div>
+        <div class="legend-swatch" style="background:var(--direct-fill);border:1px solid var(--direct-stroke);"></div>
         <span>직접 접근 / 직접 작용 영역</span>
       </div>
       <div class="legend-item">
-        <div class="legend-swatch" style="background:#EEEDFE;border:1px solid #534AB7;"></div>
+        <div class="legend-swatch" style="background:var(--secondary-fill);border:1px solid var(--secondary-stroke);"></div>
         <span>2차 간접 활성 / relay</span>
       </div>
 
       <div class="legend-item" style="margin-top:16px;">
-        <div class="legend-line" style="border-top-color:#D85A30;border-top-style:dashed;"></div>
+        <div class="legend-line" style="border-top-color:var(--entry-strong);border-top-style:dashed;"></div>
         <span>entry-strong</span>
       </div>
       <div class="legend-item">
-        <div class="legend-line" style="border-top-color:#D85A30;border-top-style:dashed;opacity:0.75;"></div>
+        <div class="legend-line" style="border-top-color:var(--entry-overlap);border-top-style:dashed;opacity:0.75;"></div>
         <span>entry-overlap</span>
       </div>
       <div class="legend-item">
-        <div class="legend-line" style="border-top-color:#1D9E75;border-top-style:dashed;"></div>
+        <div class="legend-line" style="border-top-color:var(--putative);border-top-style:dashed;"></div>
         <span>putative / indirect modulation</span>
       </div>
       <div class="legend-item">
-        <div class="legend-line" style="border-top-color:#7F77DD;border-top-style:solid;"></div>
+        <div class="legend-line" style="border-top-color:var(--downstream);border-top-style:solid;"></div>
         <span>secondary output relay</span>
       </div>
     </div>
 
   </div>
 
-  <!-- 우측 다이어그램 메인 뷰어 -->
   <div id="diagram-container">
     <div id="tooltip" class="tooltip"></div>
   </div>
@@ -369,22 +367,22 @@
     // ============================================================
     const width = 1100;
     const height = 780;
-    const atlasImage = "Mouse_Brain.png"; 
+    const atlasImage = "Mouse Brain.png"; 
 
     const nodeWidth = 136;
     const nodeHeight = 46;
 
     const classes = {
-      "primary-entry": { fill: "#FAECE7", stroke: "#993C1D", text: "#993C1D" },
-      "direct-access": { fill: "#E1F5EE", stroke: "#0F6E56", text: "#0F6E56" },
-      "secondary-relay": { fill: "#EEEDFE", stroke: "#534AB7", text: "#534AB7" }
+      "primary-entry": { fill: "var(--primary-fill)", stroke: "var(--primary-stroke)", text: "var(--primary-stroke)" },
+      "direct-access": { fill: "var(--direct-fill)", stroke: "var(--direct-stroke)", text: "var(--direct-stroke)" },
+      "secondary-relay": { fill: "var(--secondary-fill)", stroke: "var(--secondary-stroke)", text: "var(--secondary-stroke)" }
     };
 
     const linkClasses = {
-      "entry-strong": { stroke: "#D85A30", dash: "6 4", width: 2.6, marker: "arrow-entry-strong", opacity: 1 },
-      "entry-overlap": { stroke: "#D85A30", dash: "3 4", width: 1.8, marker: "arrow-entry-overlap", opacity: 0.75 },
-      "putative-modulation": { stroke: "#1D9E75", dash: "4 4", width: 1.9, marker: "arrow-putative", opacity: 0.95 },
-      "secondary-output": { stroke: "#7F77DD", dash: null, width: 2.0, marker: "arrow-downstream", opacity: 1 }
+      "entry-strong": { stroke: "var(--entry-strong)", dash: "6 4", width: 2.6, marker: "arrow-entry-strong", opacity: 1 },
+      "entry-overlap": { stroke: "var(--entry-overlap)", dash: "3 4", width: 1.8, marker: "arrow-entry-overlap", opacity: 0.75 },
+      "putative-modulation": { stroke: "var(--putative)", dash: "4 4", width: 1.9, marker: "arrow-putative", opacity: 0.95 },
+      "secondary-output": { stroke: "var(--downstream)", dash: null, width: 2.0, marker: "arrow-downstream", opacity: 1 }
     };
 
     const modes = {
@@ -667,10 +665,10 @@
         .attr("fill", color);
     }
 
-    createMarker("arrow-entry-strong", "#D85A30");
-    createMarker("arrow-entry-overlap", "#D85A30");
-    createMarker("arrow-putative", "#1D9E75");
-    createMarker("arrow-downstream", "#7F77DD");
+    createMarker("arrow-entry-strong", "var(--entry-strong)");
+    createMarker("arrow-entry-overlap", "var(--entry-overlap)");
+    createMarker("arrow-putative", "var(--putative)");
+    createMarker("arrow-downstream", "var(--downstream)");
 
     const bgLayer = svg.append("g").attr("class", "bg-layer");
     const linkLayer = svg.append("g").attr("class", "link-layer");
@@ -827,7 +825,7 @@
 
     function showTooltip(event, html) {
       tooltip.html(html).style("opacity", 1);
-      moveTooltip(event);
+       moveTooltip(event);
     }
 
     function moveTooltip(event) {
