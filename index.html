@@ -23,11 +23,15 @@
       --context-stroke: #8A8A8A;
 
       --entry-strong: #D85A30;
-      --entry-overlap: #B85C38;      /* strong과 차이 강화 */
-      --putative: #2B8CBE;           /* green 계열과 분리 */
-      --downstream: #6B63D9;    /* purple 선 가시성 강화 */
+      --entry-overlap: #B85C38;
+      --putative: #2B8CBE;
+      --downstream: #6B63D9;
 
       --leader: #B8B8B8;
+
+     --cfos-ring: #F2C94C;
+     --cfos-glow: rgba(242, 201, 76, 0.30);
+     --cfos-link: #F2C94C;
     }
 
     * { box-sizing: border-box; }
@@ -200,6 +204,7 @@
 
     .node-group {
       cursor: default;
+      transition: opacity 0.15s ease;
     }
 
     .label-group {
@@ -224,6 +229,7 @@
       fill: #333;
       pointer-events: none;
       text-anchor: middle;
+      transition: 0.15s ease;
     }
 
     .node-desc {
@@ -231,6 +237,7 @@
       font-weight: 600;
       pointer-events: none;
       text-anchor: middle;
+      transition: 0.15s ease;
     }
 
     .link-path {
@@ -261,7 +268,7 @@
       line-height: 1.45;
       padding: 8px 10px;
       border-radius: 8px;
-      max-width: 240px;
+      max-width: 260px;
       transform: translate(10px, 10px);
       opacity: 0;
       transition: opacity 0.12s ease;
@@ -280,12 +287,38 @@
       margin-top: 8px;
       line-height: 1.4;
     }
+
+    .cfos-active .node-rect {
+      stroke: var(--cfos-ring) !important;
+      stroke-width: 3.2px;
+      filter: drop-shadow(0 0 6px var(--cfos-glow));
+    }
+
+    .cfos-active .node-title,
+    .cfos-active .node-desc {
+      font-weight: 800;
+    }
+
+    .cfos-dim {
+      opacity: 0.26;
+    }
+
+    .cfos-link-active {
+      stroke: var(--cfos-link) !important;
+      stroke-width: 2.8px !important;
+      opacity: 1 !important;
+      filter: drop-shadow(0 0 3px rgba(198, 70, 26, 0.22));
+    }
+
+    .cfos-link-dim {
+      opacity: 0.12 !important;
+    }
   </style>
 </head>
 <body>
 
   <div class="sidebar">
-    
+
     <div id="status" class="ui-panel">
       <div class="panel-title">Semaglutide CNS map</div>
       <div id="status-text">
@@ -309,6 +342,10 @@
         <label class="toggle-chip">
           <input type="checkbox" id="toggle-anchors" checked />
           <span>anchor dots</span>
+        </label>
+        <label class="toggle-chip">
+          <input type="checkbox" id="toggle-cfos" />
+          <span>c-Fos regions</span>
         </label>
       </div>
 
@@ -367,7 +404,7 @@
     // ============================================================
     const width = 1100;
     const height = 780;
-    const atlasImage = "Mouse Brain.png"; 
+    const atlasImage = "Mouse Brain.png";
 
     const nodeWidth = 136;
     const nodeHeight = 46;
@@ -390,13 +427,13 @@
         label: "acute",
         showNodes: ["AP","ME","OVLT","SFO","ARH","NTS","DMX","LSc","SF","MEPO"],
         showLinks: [],
-        status: "Acute distribution: CVOs + select ventricular-adjacent regions"
+        status: "Acute (IV, 6h) distribution: CVOs + select ventricular-adjacent regions"
       },
       steady: {
         label: "steady",
         showNodes: ["AP","ME","OVLT","SFO","ARH","NTS","DMX","LSc","SF","MEPO","PVH","DMH","MM","SO","TU"],
         showLinks: [],
-        status: "Steady-state distribution: acute nodes + additional hypothalamic access"
+        status: "Steady-state (SC, 5d) distribution: acute nodes + additional hypothalamic access"
       },
       circuit: {
         label: "circuit",
@@ -414,104 +451,124 @@
 
     const nodes = [
       {
-        id: "AP", label: "Area Postrema", desc: "primary entry · GLP-1R direct",
+        id: "AP", label: "Area Postrema", desc: "direct access · PB entry",
         class: "primary-entry", anchor: { x: 964.7, y: 434.4 }, labelBox: { x: 1004.2, y: 375.2 },
-        evidence: ["acute distribution", "c-Fos+", "primary entry"]
+        evidence: ["acute distribution", "primary entry"],
+        cfos: true
       },
       {
         id: "ME", label: "Median Eminence", desc: "direct access",
         class: "primary-entry", anchor: { x: 593.1, y: 564.6 }, labelBox: { x: 667.6, y: 676.8 },
-        evidence: ["acute distribution", "CVO"]
+        evidence: ["acute distribution", "CVO"],
+        cfos: false
       },
       {
         id: "OVLT", label: "OVLT", desc: "direct access",
         class: "primary-entry", anchor: { x: 443.2, y: 546.6 }, labelBox: { x: 332.8, y: 401.2 },
-        evidence: ["acute distribution", "CVO"]
+        evidence: ["acute distribution", "CVO"],
+        cfos: false
       },
       {
-        id: "SFO", label: "SFO", desc: "direct access · c-Fos+",
+        id: "SFO", label: "SFO", desc: "direct access",
         class: "primary-entry", anchor: { x: 476.4, y: 334.8 }, labelBox: { x: 547.3, y: 237.9 },
-        evidence: ["acute distribution", "c-Fos+", "CVO"]
+        evidence: ["acute distribution", "CVO"],
+        cfos: true
       },
       {
         id: "ARH", label: "Arcuate Nucleus", desc: "POMC/CART↑ · NPY/AgRP↓",
         class: "direct-access", anchor: { x: 614.6, y: 557.4 }, labelBox: { x: 813.9, y: 692.0 },
-        evidence: ["direct access", "POMC/CART activation", "NPY/AgRP inhibition"]
+        evidence: ["direct access", "POMC/CART activation", "NPY/AgRP inhibition"],
+        cfos: false
       },
       {
-        id: "NTS", label: "NTS", desc: "distribution / c-Fos overlap",
+        id: "NTS", label: "NTS", desc: "distribution / relay region",
         class: "direct-access", anchor: { x: 987.1, y: 447.9 }, labelBox: { x: 1019.4, y: 501.7 },
-        evidence: ["distribution overlap", "c-Fos+", "weaker direct-cell-body basis"]
+        evidence: ["distribution overlap", "relay contribution"],
+        cfos: true
       },
       {
-        id: "DMX", label: "DMX", desc: "distribution / c-Fos overlap",
+        id: "DMX", label: "DMX", desc: "distribution / relay region",
         class: "direct-access", anchor: { x: 981.7, y: 460.5 }, labelBox: { x: 971.9, y: 569.1 },
-        evidence: ["distribution overlap", "c-Fos+"]
+        evidence: ["distribution overlap"],
+        cfos: true
       },
       {
         id: "LSc", label: "Lateral Septal", desc: "semaglutide-enriched access",
         class: "direct-access", anchor: { x: 434.2, y: 316.8 }, labelBox: { x: 300.0, y: 215.0 },
-        evidence: ["acute distribution", "semaglutide > liraglutide access"]
+        evidence: ["acute distribution", "semaglutide > liraglutide access"],
+        cfos: false
       },
       {
         id: "SF", label: "Septofimbrial N.", desc: "acute access",
         class: "direct-access", anchor: { x: 450.4, y: 361.7 }, labelBox: { x: 156.9, y: 282.7 },
-        evidence: ["acute distribution"]
+        evidence: ["acute distribution"],
+        cfos: false
       },
       {
         id: "MEPO", label: "Median Preoptic N.", desc: "acute access",
         class: "direct-access", anchor: { x: 445.0, y: 491.0 }, labelBox: { x: 288.8, y: 575.4 },
-        evidence: ["acute distribution"]
+        evidence: ["acute distribution"],
+        cfos: false
       },
       {
         id: "PVH", label: "PVH", desc: "steady-state access",
         class: "direct-access", anchor: { x: 532.0, y: 472.1 }, labelBox: { x: 439.6, y: 663.3 },
-        evidence: ["steady-state distribution"]
+        evidence: ["steady-state distribution"],
+        cfos: false
       },
       {
         id: "DMH", label: "DMH", desc: "steady-state access",
         class: "direct-access", anchor: { x: 595.8, y: 500.9 }, labelBox: { x: 748.4, y: 457.8 },
-        evidence: ["steady-state distribution"]
+        evidence: ["steady-state distribution"],
+        cfos: false
       },
       {
         id: "MM", label: "MM", desc: "steady-state access",
         class: "direct-access", anchor: { x: 669.4, y: 512.5 }, labelBox: { x: 718.7, y: 596.9 },
-        evidence: ["steady-state distribution"]
+        evidence: ["steady-state distribution"],
+        cfos: false
       },
       {
         id: "SO", label: "SO", desc: "steady-state access",
         class: "direct-access", anchor: { x: 520.4, y: 554.7 }, labelBox: { x: 245.7, y: 632.8 },
-        evidence: ["steady-state distribution"]
+        evidence: ["steady-state distribution"],
+        cfos: false
       },
       {
         id: "TU", label: "TU", desc: "steady-state access",
         class: "direct-access", anchor: { x: 585.9, y: 571.8 }, labelBox: { x: 564.4, y: 728.8 },
-        evidence: ["steady-state distribution"]
+        evidence: ["steady-state distribution"],
+        cfos: false
       },
       {
         id: "dlPB", label: "dl-PB (CGRP+)", desc: "meal termination relay",
         class: "secondary-relay", anchor: { x: 804.0, y: 377.9 }, labelBox: { x: 793.2, y: 324.9 },
-        evidence: ["c-Fos+", "secondary relay", "CGRP overlap"]
+        evidence: ["secondary relay", "CGRP overlap"],
+        cfos: true
       },
       {
         id: "CeA", label: "Central Amygdala", desc: "secondary activation",
         class: "secondary-relay", anchor: { x: 495.2, y: 488.3 }, labelBox: { x: 449.5, y: 597.8 },
-        evidence: ["secondary activation", "downstream relay"]
+        evidence: ["secondary activation", "downstream relay"],
+        cfos: true
       },
       {
         id: "BST", label: "BST", desc: "secondary activation",
         class: "secondary-relay", anchor: { x: 474.6, y: 466.7 }, labelBox: { x: 257.4, y: 488.3 },
-        evidence: ["secondary activation", "downstream relay"]
+        evidence: ["secondary activation", "downstream relay"],
+        cfos: true
       },
       {
-        id: "MTN_PVT", label: "MTN / PVT", desc: "secondary thalamic activation",
+        id: "MTN_PVT", label: "MTN / PVT", desc: "secondary activation",
         class: "secondary-relay", anchor: { x: 506.9, y: 347.4 }, labelBox: { x: 625.4, y: 312.4 },
-        evidence: ["secondary activation", "thalamic relay"]
+        evidence: ["secondary activation", "thalamic relay"],
+        cfos: true
       },
       {
         id: "PSTN", label: "PSTN", desc: "secondary activation",
         class: "secondary-relay", anchor: { x: 669.4, y: 488.3 }, labelBox: { x: 791.4, y: 530.5 },
-        evidence: ["secondary activation", "posterior hypothalamic relay"]
+        evidence: ["secondary activation", "posterior hypothalamic relay"],
+        cfos: true
       }
     ];
 
@@ -636,6 +693,16 @@
         console.log(text);
         alert("클립보드 복사 실패. 콘솔을 확인하세요.");
       });
+    }
+
+    function isCfosNode(node) {
+      return !!node.cfos;
+    }
+
+    function isCfosLink(link) {
+      const source = getNodeById(link.source);
+      const target = getNodeById(link.target);
+      return !!(source && target && source.cfos && target.cfos);
     }
 
     // ============================================================
@@ -825,7 +892,7 @@
 
     function showTooltip(event, html) {
       tooltip.html(html).style("opacity", 1);
-       moveTooltip(event);
+      moveTooltip(event);
     }
 
     function moveTooltip(event) {
@@ -900,10 +967,33 @@
       document.getElementById("status-text").textContent = modes[currentMode].status;
     }
 
+    function updateCfosOverlay() {
+      const enabled = document.getElementById("toggle-cfos").checked;
+
+      nodeLayer.selectAll(".node-group")
+        .classed("cfos-active", d => enabled && getNodeVisible(d) && isCfosNode(d))
+        .classed("cfos-dim", d => enabled && getNodeVisible(d) && !isCfosNode(d));
+
+      nodeLayer.selectAll(".node-group")
+        .filter(d => !getNodeVisible(d))
+        .classed("cfos-active", false)
+        .classed("cfos-dim", false);
+
+      linkLayer.selectAll(".link-path")
+        .classed("cfos-link-active", d => enabled && getLinkVisible(d) && isCfosLink(d))
+        .classed("cfos-link-dim", d => enabled && getLinkVisible(d) && !isCfosLink(d));
+
+      linkLayer.selectAll(".link-path")
+        .filter(d => !getLinkVisible(d))
+        .classed("cfos-link-active", false)
+        .classed("cfos-link-dim", false);
+    }
+
     function render() {
       updateNodePositions();
       updateVisibility();
       updateModeButtons();
+      updateCfosOverlay();
     }
 
     // ============================================================
@@ -933,6 +1023,7 @@
     // ============================================================
     document.getElementById("toggle-leaders").addEventListener("change", render);
     document.getElementById("toggle-anchors").addEventListener("change", render);
+    document.getElementById("toggle-cfos").addEventListener("change", render);
 
     document.getElementById("reset-layout-btn").addEventListener("click", resetLayout);
     document.getElementById("export-layout-btn").addEventListener("click", exportLayout);
